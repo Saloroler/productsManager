@@ -41,7 +41,6 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	// Configs are set for easy local setup run
 	cfg := Config{
 		Port:            port,
 		DatabaseURL:     config.String("DATABASE_URL", "postgres://postgres:postgres@psql:5432/products?sslmode=disable"),

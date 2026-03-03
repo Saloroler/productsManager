@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-
 	"productsManager/internal/httpx"
 	"productsManager/internal/products/metrics"
 	"productsManager/internal/products/models"
@@ -49,17 +47,6 @@ func New(store Store, pub publisher.Publisher, productMetrics *metrics.Metrics) 
 	}
 }
 
-func (h *Handler) Routes() chi.Router {
-	r := chi.NewRouter()
-	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
-	r.Post("/products", h.CreateProduct)
-	r.Delete("/products/{id}", h.DeleteProduct)
-	r.Get("/products", h.ListProducts)
-	return r
-}
-
 func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	var req createProductRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -96,8 +83,8 @@ func (h *Handler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, product)
 }
 
-func (h *Handler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	id, err := parseProductID(chi.URLParam(r, "id"))
+func (h *Handler) DeleteProduct(w http.ResponseWriter, r *http.Request, rawID string) {
+	id, err := parseProductID(rawID)
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid product id")
 		return

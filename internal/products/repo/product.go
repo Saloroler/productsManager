@@ -1,4 +1,4 @@
-package store
+package repo
 
 import (
 	"context"
@@ -9,15 +9,15 @@ import (
 	"productsManager/internal/products/models"
 )
 
-type Store struct {
-	pool *pgxpool.Pool
+type ProductRepo struct {
+	conn *pgxpool.Pool
 }
 
-func New(pool *pgxpool.Pool) *Store {
-	return &Store{pool: pool}
+func NewProductRepo(conn *pgxpool.Pool) *ProductRepo {
+	return &ProductRepo{conn: conn}
 }
 
-func (s *Store) CreateProduct(ctx context.Context, name string, price int) (models.Product, error) {
+func (r *ProductRepo) CreateProduct(ctx context.Context, name string, price int) (models.Product, error) {
 	const query = `
 		INSERT INTO products (name, price)
 		VALUES ($1, $2)
@@ -25,7 +25,7 @@ func (s *Store) CreateProduct(ctx context.Context, name string, price int) (mode
 	`
 
 	var product models.Product
-	if err := s.pool.QueryRow(ctx, query, name, price).Scan(
+	if err := r.conn.QueryRow(ctx, query, name, price).Scan(
 		&product.ID,
 		&product.Name,
 		&product.Price,
@@ -37,8 +37,8 @@ func (s *Store) CreateProduct(ctx context.Context, name string, price int) (mode
 	return product, nil
 }
 
-func (s *Store) DeleteProduct(ctx context.Context, id int64) (bool, error) {
-	tag, err := s.pool.Exec(ctx, `DELETE FROM products WHERE id = $1`, id)
+func (r *ProductRepo) DeleteProduct(ctx context.Context, id int64) (bool, error) {
+	tag, err := r.conn.Exec(ctx, `DELETE FROM products WHERE id = $1`, id)
 	if err != nil {
 		return false, fmt.Errorf("delete product: %w", err)
 	}
@@ -46,13 +46,13 @@ func (s *Store) DeleteProduct(ctx context.Context, id int64) (bool, error) {
 	return tag.RowsAffected() > 0, nil
 }
 
-func (s *Store) ListProducts(ctx context.Context, page int, limit int) ([]models.Product, int64, error) {
+func (r *ProductRepo) ListProducts(ctx context.Context, page int, limit int) ([]models.Product, int64, error) {
 	var total int64
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM products`).Scan(&total); err != nil {
+	if err := r.conn.QueryRow(ctx, `SELECT count(*) FROM products`).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count products: %w", err)
 	}
 
-	rows, err := s.pool.Query(ctx, `
+	rows, err := r.conn.Query(ctx, `
 		SELECT id, name, price, created_at
 		FROM products
 		ORDER BY created_at DESC, id DESC
@@ -79,8 +79,8 @@ func (s *Store) ListProducts(ctx context.Context, page int, limit int) ([]models
 	return items, total, nil
 }
 
-func (s *Store) TruncateProducts(ctx context.Context) error {
-	if _, err := s.pool.Exec(ctx, `TRUNCATE TABLE products RESTART IDENTITY`); err != nil {
+func (r *ProductRepo) TruncateProducts(ctx context.Context) error {
+	if _, err := r.conn.Exec(ctx, `TRUNCATE TABLE products RESTART IDENTITY`); err != nil {
 		return fmt.Errorf("truncate products: %w", err)
 	}
 

@@ -10,18 +10,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"productsManager/internal/products/handlers"
+	"productsManager/internal/products/api/handlers"
+	"productsManager/internal/products/api/routes"
 	"productsManager/internal/products/metrics"
 	"productsManager/internal/products/models"
 	"productsManager/internal/products/publisher"
-	"productsManager/internal/products/store"
+	"productsManager/internal/products/repo"
 	"productsManager/internal/testutil"
 )
 
 func TestCreateProduct(t *testing.T) {
-	productStore, router := newTestRouter(t)
+	productRepo, router := newTestRouter(t)
 
 	body := bytes.NewBufferString(`{"name":"Keyboard","price":12345}`)
 	req := httptest.NewRequest(http.MethodPost, "/products", body)
@@ -51,9 +53,9 @@ func TestCreateProduct(t *testing.T) {
 		t.Fatal("expected created_at to be set")
 	}
 
-	items, total, err := productStore.ListProducts(context.Background(), 1, 20)
+	items, total, err := productRepo.ListProducts(context.Background(), 1, 20)
 	if err != nil {
-		t.Fatalf("list products from store: %v", err)
+		t.Fatalf("list products from repo: %v", err)
 	}
 	if total != 1 || len(items) != 1 {
 		t.Fatalf("expected one product in database, total=%d items=%d", total, len(items))
@@ -61,22 +63,22 @@ func TestCreateProduct(t *testing.T) {
 }
 
 func TestListProductsPagination(t *testing.T) {
-	productStore, router := newTestRouter(t)
+	productRepo, router := newTestRouter(t)
 	ctx := context.Background()
 
-	first, err := productStore.CreateProduct(ctx, "First", 100)
+	first, err := productRepo.CreateProduct(ctx, "First", 100)
 	if err != nil {
 		t.Fatalf("seed first product: %v", err)
 	}
 	time.Sleep(10 * time.Millisecond)
 
-	second, err := productStore.CreateProduct(ctx, "Second", 200)
+	second, err := productRepo.CreateProduct(ctx, "Second", 200)
 	if err != nil {
 		t.Fatalf("seed second product: %v", err)
 	}
 	time.Sleep(10 * time.Millisecond)
 
-	third, err := productStore.CreateProduct(ctx, "Third", 300)
+	third, err := productRepo.CreateProduct(ctx, "Third", 300)
 	if err != nil {
 		t.Fatalf("seed third product: %v", err)
 	}
@@ -136,8 +138,8 @@ func TestListProductsPagination(t *testing.T) {
 }
 
 func TestDeleteProduct(t *testing.T) {
-	productStore, router := newTestRouter(t)
-	product, err := productStore.CreateProduct(context.Background(), "Mouse", 5000)
+	productRepo, router := newTestRouter(t)
+	product, err := productRepo.CreateProduct(context.Background(), "Mouse", 5000)
 	if err != nil {
 		t.Fatalf("seed product: %v", err)
 	}
@@ -150,7 +152,7 @@ func TestDeleteProduct(t *testing.T) {
 		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	items, total, err := productStore.ListProducts(context.Background(), 1, 20)
+	items, total, err := productRepo.ListProducts(context.Background(), 1, 20)
 	if err != nil {
 		t.Fatalf("list products after delete: %v", err)
 	}
@@ -167,18 +169,22 @@ func TestDeleteProduct(t *testing.T) {
 	}
 }
 
-func newTestRouter(t *testing.T) (*store.Store, http.Handler) {
+func newTestRouter(t *testing.T) (*repo.ProductRepo, http.Handler) {
 	t.Helper()
 
-	pool := testutil.OpenTestPool(t)
-	productStore := store.New(pool)
-	if err := productStore.TruncateProducts(context.Background()); err != nil {
+	conn := testutil.OpenTestConn(t)
+	productRepo := repo.NewProductRepo(conn)
+	if err := productRepo.TruncateProducts(context.Background()); err != nil {
 		t.Fatalf("truncate products: %v", err)
 	}
 
 	registry := prometheus.NewRegistry()
 	productMetrics := metrics.New(registry)
-	router := handlers.New(productStore, publisher.NoopPublisher{}, productMetrics).Routes()
+	productHandler := handlers.New(productRepo, publisher.NoopPublisher{}, productMetrics)
 
-	return productStore, router
+	router := chi.NewRouter()
+	router.Mount("/products", routes.NewProductsRouter(productHandler))
+	router.Mount("/", routes.NewSystemRouter(registry))
+
+	return productRepo, router
 }

@@ -2,7 +2,7 @@
 
 Go monorepo with two microservices:
 - `products`: HTTP API on `:3000`, PostgreSQL persistence, Prometheus metrics, SQS publishing
-- `notifications`: SQS consumer on `:3001`, logs product events and acknowledges messages
+- `notifications`: SQS consumer that logs product events and acknowledges messages
 
 Local infrastructure is provided by Docker Compose:
 - PostgreSQL on `localhost:5432`
@@ -57,7 +57,6 @@ env GOCACHE=$(pwd)/.gocache GOMODCACHE=$(pwd)/.gomodcache go test ./...
 
 - Products API: `http://localhost:3000`
 - Products metrics: `http://localhost:3000/metrics`
-- Notifications health: `http://localhost:3001/healthz`
 - Prometheus UI: `http://localhost:9090`
 - LocalStack endpoint: `http://localhost:4566`
 

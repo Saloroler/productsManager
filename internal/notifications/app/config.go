@@ -3,7 +3,6 @@ package app
 import "productsManager/internal/config"
 
 type Config struct {
-	Port           int
 	AWSRegion      string
 	AWSEndpointURL string
 	AWSAccessKeyID string
@@ -16,11 +15,6 @@ type Config struct {
 }
 
 func LoadConfig() (Config, error) {
-	port, err := config.Int("HTTP_PORT", 3001)
-	if err != nil {
-		return Config{}, err
-	}
-
 	enabled, err := config.Bool("SQS_ENABLED", true)
 	if err != nil {
 		return Config{}, err
@@ -37,7 +31,6 @@ func LoadConfig() (Config, error) {
 	}
 
 	return Config{
-		Port:           port,
 		AWSRegion:      config.String("AWS_REGION", "us-east-1"),
 		AWSEndpointURL: config.String("AWS_ENDPOINT_URL", "http://localstack:4566"),
 		AWSAccessKeyID: config.String("AWS_ACCESS_KEY_ID", "test"),

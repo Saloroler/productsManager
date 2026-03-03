@@ -43,8 +43,8 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    depends_on:
-      - products
+#    depends_on:
+#      - products
 
   products:
     build:
@@ -82,8 +82,6 @@ services:
       SQS_ENABLED: "true"
       SQS_WAIT_TIME_SECONDS: 10
       SQS_MAX_MESSAGES: 10
-    ports:
-      - "3001:3001"
     depends_on:
       localstack:
         condition: service_healthy

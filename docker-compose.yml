@@ -1,0 +1,93 @@
+services:
+  psql:
+    image: postgres:16
+    container_name: products-psql
+    environment:
+      POSTGRES_DB: products
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d products"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  localstack:
+    image: localstack/localstack:4.4
+    container_name: products-localstack
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: us-east-1
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - ./init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh:ro
+      - localstack-data:/var/lib/localstack
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: products-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - products
+
+  products:
+    build:
+      context: .
+      dockerfile: products.Dockerfile
+    container_name: products-api
+    environment:
+      HTTP_PORT: 3000
+      DATABASE_URL: postgres://postgres:postgres@psql:5432/products?sslmode=disable
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_QUEUE_NAME: product-events
+      SQS_ENABLED: "true"
+    ports:
+      - "3000:3000"
+    depends_on:
+      psql:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+  notifications:
+    build:
+      context: .
+      dockerfile: notifications.Dockerfile
+    container_name: products-notifications
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_QUEUE_NAME: product-events
+      SQS_ENABLED: "true"
+      SQS_WAIT_TIME_SECONDS: 10
+      SQS_MAX_MESSAGES: 10
+    ports:
+      - "3001:3001"
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  localstack-data:

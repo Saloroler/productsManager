@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: products
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - products:3000

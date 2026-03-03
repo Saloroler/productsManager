@@ -102,23 +102,6 @@ docker compose logs -f notifications
 - `make run-products`: run products service from the host
 - `make run-notifications`: run notifications service from the host
 
-## Configuration
-
-Defaults are tuned for Docker Compose:
-
-- `DATABASE_URL=postgres://postgres:postgres@psql:5432/products?sslmode=disable`
-- `HTTP_PORT=3000` for products, `3001` for notifications
-- `AWS_REGION=us-east-1`
-- `AWS_ENDPOINT_URL=http://localstack:4566`
-- `AWS_ACCESS_KEY_ID=test`
-- `AWS_SECRET_ACCESS_KEY=test`
-- `SQS_QUEUE_NAME=product-events`
-- `SQS_QUEUE_URL=` optional explicit queue URL
-- `SQS_ENABLED=true`
-- `SQS_WAIT_TIME_SECONDS=10`
-- `SQS_MAX_MESSAGES=10`
-- `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/products?sslmode=disable`
-
 ## Testing
 
 The products tests:
@@ -134,8 +117,3 @@ make up
 make migrate
 make test
 ```
-
-## Caveats
-
-- Product writes and SQS publishes are not atomic. If the DB write succeeds and SQS publish fails, the API returns `500` but the row change may already exist.
-- The notifications service is intentionally minimal and only logs received events before deleting them from the queue.

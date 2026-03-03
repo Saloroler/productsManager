@@ -1,4 +1,4 @@
-# productsManager
+# ProductsManager
 
 Go monorepo with two microservices:
 - `products`: HTTP API on `:3000`, PostgreSQL persistence, Prometheus metrics, SQS publishing
@@ -13,19 +13,6 @@ Local infrastructure is provided by Docker Compose:
 
 - Go `1.26+`
 - Docker Desktop or Docker Engine with Compose v2
-
-## Project layout
-
-- `cmd/products/main.go`
-- `cmd/notifications/main.go`
-- `cmd/migrate/main.go`
-- `internal/products/...`
-- `internal/notifications/...`
-- `migrations/`
-- `docker-compose.yml`
-- `prometheus.yml`
-- `init-localstack.sh`
-- `Makefile`
 
 ## Quick start
 
@@ -44,13 +31,28 @@ make migrate
 Run tests:
 
 ```bash
-go test ./...
+make test
 ```
 
-The `Makefile` already uses repo-local Go caches. If you want to run the same command manually inside this repo without touching the host cache, use:
+## Migrations
+
+Migrations are executed by the in-repo executable at [`cmd/migrate/main.go`](/Users/olegmaster/Work/CodeActivity/guruappsProductsManager/productsManager/cmd/migrate/main.go), not by a separately installed CLI tool.
+
+It uses:
+- `github.com/golang-migrate/migrate/v4`
+
+Migration files live in [`migrations/`](/Users/olegmaster/Work/CodeActivity/guruappsProductsManager/productsManager/migrations).
+
+The Make targets wrap this executable:
+- `make migrate`
+- `make migrate-up`
+- `make migrate-down`
+- `make migrate-reset`
+
+Equivalent direct command:
 
 ```bash
-env GOCACHE=$(pwd)/.gocache GOMODCACHE=$(pwd)/.gomodcache go test ./...
+go run ./cmd/migrate -database-url "postgres://postgres:postgres@localhost:5432/products?sslmode=disable" -command up
 ```
 
 ## Service URLs
